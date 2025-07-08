@@ -1,3 +1,4 @@
+<%@ page contentType="text/html;charset=UTF-8" language="java" %>
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -12,7 +13,7 @@
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            height: 100vh;
+            min-height: 100vh;
             text-align: center;
             padding: 20px;
         }
@@ -33,6 +34,8 @@
             display: flex;
             flex-direction: column;
             gap: 30px;
+            width: 100%;
+            max-width: 400px;
         }
 
         .role-card {
@@ -54,6 +57,7 @@
             display: flex;
             justify-content: center;
             flex-wrap: wrap;
+            margin-top: 10px;
         }
 
         @media (max-width: 768px) {
@@ -69,29 +73,31 @@
 <p class="tagline">Smart. Adaptive. Role-based learning experience.</p>
 
 <div class="role-section">
+
     <div class="role-card">
         <h4>🎓 Student</h4>
         <div class="btn-group">
-            <a href="/Learning_war_exploded/login.jsp?role=student" class="btn btn-outline-primary">Login</a>
-            <a href="/Learning_war_exploded/student-register.jsp" class="btn btn-primary">Register</a>
+            <a href="<%= request.getContextPath() %>/login.jsp?role=student" class="btn btn-outline-primary">Login</a>
+            <a href="<%= request.getContextPath() %>/student-register.jsp" class="btn btn-primary">Register</a>
         </div>
     </div>
 
     <div class="role-card">
         <h4>👨‍🏫 Master</h4>
         <div class="btn-group">
-            <a href="/Learning_war_exploded/login.jsp?role=master" class="btn btn-outline-success">Login</a>
-            <a href="/Learning_war_exploded/master-register.jsp" class="btn btn-success">Register</a>
+            <a href="<%= request.getContextPath() %>/login.jsp?role=master" class="btn btn-outline-success">Login</a>
+            <a href="<%= request.getContextPath() %>/master-register.jsp" class="btn btn-success">Register</a>
         </div>
     </div>
 
     <div class="role-card">
         <h4>🛠️ Admin</h4>
         <div class="btn-group">
-            <a href="/Learning_war_exploded/login.jsp?role=admin" class="btn btn-outline-danger">Login</a>
-            <a href="/Learning_war_exploded/admin-register.jsp" class="btn btn-danger">Register</a>
+            <a href="<%= request.getContextPath() %>/login.jsp?role=admin" class="btn btn-outline-danger">Login</a>
+            <a href="<%= request.getContextPath() %>/admin-register.jsp" class="btn btn-danger">Register</a>
         </div>
     </div>
+
 </div>
 
 </body>

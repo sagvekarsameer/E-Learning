@@ -11,7 +11,7 @@
 
 <%@ include file="adminSidebar.jsp" %>
 
-<div class="main-content">
+<div class="main-content p-4">
     <div class="top-bar d-flex justify-content-between align-items-center mb-4">
         <h1>Admin Dashboard</h1>
         <div class="greeting text-muted">

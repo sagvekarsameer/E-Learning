@@ -5,8 +5,7 @@
   <meta charset="UTF-8">
   <title>Master Profile Setup</title>
   <link rel="stylesheet" href="../CSS/style.css">
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
-
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <style>
     body {
       background-color: #f2f2f2;
@@ -48,7 +47,7 @@
       </div>
 
       <div class="mb-3">
-        <label class="form-label">Assigned To (Std/Stream)</label>
+        <label class="form-label">Assigned To (Standard + Stream)</label>
         <select name="assigned" class="form-select" required>
           <option value="">-- Choose --</option>
           <option value="11th-Science">11th - Science</option>

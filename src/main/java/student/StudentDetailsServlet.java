@@ -1,32 +1,32 @@
 package student;
 
 import jakarta.servlet.*;
+import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.*;
-import jakarta.servlet.annotation.*;
 import java.io.IOException;
 import java.sql.*;
 
 @WebServlet("/studentDetails")
 public class StudentDetailsServlet extends HttpServlet {
     protected void doPost(HttpServletRequest request, HttpServletResponse response) throws IOException {
+        HttpSession session = request.getSession(false);
+        if (session == null || session.getAttribute("user_id") == null) {
+            response.sendRedirect("login.jsp");
+            return;
+        }
+
+        int userId = (int) session.getAttribute("user_id");
         String board = request.getParameter("board");
         String std = request.getParameter("std");
         String stream = request.getParameter("stream");
         String exam = request.getParameter("exam_preparing");
 
-        HttpSession session = request.getSession(false);
-        Integer userId = (Integer) session.getAttribute("user_id");
-
-        if (userId == null) {
-            response.sendRedirect("login.jsp?error=Session+expired,+please+login+again");
-            return;
-        }
-
-        try {
+        try (Connection conn = DriverManager.getConnection("jdbc:mysql://localhost:3306/e-learning", "root", "")) {
             Class.forName("com.mysql.cj.jdbc.Driver");
-            Connection conn = DriverManager.getConnection("jdbc:mysql://localhost:3306/e-learning", "root", "");
 
-            PreparedStatement ps = conn.prepareStatement("INSERT INTO students (user_id, board, std, stream, exam_preparing) VALUES (?, ?, ?, ?, ?)");
+            PreparedStatement ps = conn.prepareStatement(
+                    "INSERT INTO student_profiles (user_id, board, standard, stream, exam_preparing) VALUES (?, ?, ?, ?, ?)"
+            );
             ps.setInt(1, userId);
             ps.setString(2, board);
             ps.setString(3, std);
@@ -36,16 +36,15 @@ public class StudentDetailsServlet extends HttpServlet {
             int rows = ps.executeUpdate();
 
             if (rows > 0) {
-                response.sendRedirect("login.jsp?success=Student+profile+completed,+please+login");
+                session.invalidate(); // force re-login for session refresh
+                response.sendRedirect("login.jsp?success=Profile+completed+successfully");
             } else {
-                response.sendRedirect("studentForm.jsp?error=Failed+to+save+details");
+                response.sendRedirect("studentForm.jsp?error=Could+not+save+details");
             }
 
-            ps.close();
-            conn.close();
         } catch (Exception e) {
             e.printStackTrace();
-            response.sendRedirect("studentForm.jsp?error=Server+Error");
+            response.sendRedirect("studentForm.jsp?error=Server+error+occurred");
         }
     }
 }

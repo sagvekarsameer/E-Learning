@@ -15,7 +15,7 @@
     <div class="top-bar d-flex justify-content-between align-items-center mb-4">
         <h1 class="mb-0">Dashboard</h1>
         <div class="greeting text-muted">
-            Welcome, <strong>Sameer</strong>
+            Welcome, <strong><%= session.getAttribute("username") %></strong>
             <%-- You can use: Welcome, <%= session.getAttribute("username") %> --%>
         </div>
     </div>

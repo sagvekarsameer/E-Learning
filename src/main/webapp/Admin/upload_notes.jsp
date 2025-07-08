@@ -35,7 +35,6 @@
             margin-bottom: 15px;
         }
 
-        /* Toast Styles */
         .toast-container {
             position: fixed;
             bottom: 30px;
@@ -78,7 +77,7 @@
 <%@ include file="adminSidebar.jsp" %>
 
 <div class="main-content p-4">
-    <h2 class="mb-4">📄 Upload Notes</h2>
+    <h2 class="mb-4">📄 Upload Notes (Cloud Storage)</h2>
 
     <!-- Toast Message -->
     <%
@@ -87,11 +86,11 @@
     %>
     <div class="toast-container" id="toastBox">
         <% if ("true".equals(success)) { %>
-        <div class="toast toast-success">✅ Note uploaded successfully!</div>
+        <div class="toast toast-success">✅ Note uploaded successfully to Cloudinary!</div>
         <% } else if ("InvalidFileType".equals(error)) { %>
-        <div class="toast toast-error">❌ Invalid file type. Only PDF allowed.</div>
+        <div class="toast toast-error">❌ Invalid file type. Only PDF files are allowed.</div>
         <% } else if ("serverError".equals(error)) { %>
-        <div class="toast toast-error">⚠️ Server error! Please try again.</div>
+        <div class="toast toast-error">⚠️ Server error occurred while uploading. Please try again.</div>
         <% } %>
     </div>
 
@@ -100,17 +99,17 @@
         <form action="<%=request.getContextPath()%>/uploadNotes" method="post" enctype="multipart/form-data" class="upload-form">
             <div class="mb-3">
                 <label class="form-label">Note Title</label>
-                <input type="text" name="title" class="form-control" required>
+                <input type="text" name="title" class="form-control" placeholder="e.g. Organic Chemistry Basics" required>
             </div>
 
             <div class="mb-3">
                 <label class="form-label">Description</label>
-                <input type="text" name="description" class="form-control" required>
+                <input type="text" name="description" class="form-control" placeholder="Short summary of note content" required>
             </div>
 
             <div class="mb-3">
                 <label class="form-label">Subject</label>
-                <input type="text" name="subject" class="form-control" required>
+                <input type="text" name="subject" class="form-control" placeholder="e.g. Physics, Accountancy" required>
             </div>
 
             <div class="mb-3">
@@ -124,7 +123,7 @@
 
             <div class="mb-3">
                 <label class="form-label">Select Stream</label>
-                <select name="stream" class="form-select">
+                <select name="stream" class="form-select" required>
                     <option value="">-- Choose Stream --</option>
                     <option value="Science">Science</option>
                     <option value="Commerce">Commerce</option>
@@ -134,7 +133,7 @@
 
             <div class="mb-3">
                 <label class="form-label">Exam Tags</label>
-                <select name="tags" multiple class="form-select" size="3">
+                <select name="tags" multiple class="form-select" size="3" required>
                     <option value="NEET">NEET</option>
                     <option value="JEE">JEE</option>
                     <option value="CET">CET</option>
@@ -144,25 +143,27 @@
             <div class="mb-3">
                 <label class="form-label">Upload PDF File</label>
                 <input type="file" name="file" class="form-control" accept=".pdf" required>
+                <small class="text-muted">Only PDF files are accepted. Max size: 50MB</small>
             </div>
 
-            <button type="submit" class="btn btn-primary">📤 Upload Note</button>
+            <button type="submit" class="btn btn-primary w-100">📤 Upload Note to Cloud</button>
         </form>
 
-        <!-- Preview/Instructions -->
+        <!-- Instructions / Preview -->
         <div class="upload-preview">
-            <h5>📌 Instructions:</h5>
+            <h5>🛠 How it works:</h5>
             <ul>
-                <li>Assign notes to <strong>Standard + Stream</strong></li>
-                <li>You can add multiple <strong>exam tags</strong></li>
-                <li>Only <strong>PDF</strong> files are allowed</li>
+                <li>✅ Files are securely uploaded to <strong>Cloudinary</strong></li>
+                <li>📝 Add title, description, and subject</li>
+                <li>📚 Assign to <strong>Standard + Stream</strong> + Optional exam tags</li>
+                <li>🔒 Only <strong>.PDF</strong> files up to <strong>10MB</strong> are supported</li>
+                <li>📁 File is automatically saved in <code>/notes</code> folder in your cloud</li>
             </ul>
         </div>
     </div>
 </div>
 
 <script>
-    // Hide toast after 5s
     window.addEventListener("DOMContentLoaded", () => {
         const toastBox = document.getElementById("toastBox");
         if (toastBox) {

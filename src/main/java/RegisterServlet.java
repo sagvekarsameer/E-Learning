@@ -27,7 +27,6 @@ public class RegisterServlet extends HttpServlet {
             Class.forName("com.mysql.cj.jdbc.Driver");
             Connection conn = DriverManager.getConnection("jdbc:mysql://localhost:3306/e-learning", "root", "");
 
-            // Check if email exists
             PreparedStatement checkStmt = conn.prepareStatement("SELECT * FROM users WHERE email = ?");
             checkStmt.setString(1, email);
             ResultSet rs = checkStmt.executeQuery();
@@ -44,7 +43,6 @@ public class RegisterServlet extends HttpServlet {
             ps.setString(4, role);
 
             int rows = ps.executeUpdate();
-
             if (rows > 0) {
                 ResultSet generatedKeys = ps.getGeneratedKeys();
                 int userId = 0;
@@ -52,12 +50,10 @@ public class RegisterServlet extends HttpServlet {
                     userId = generatedKeys.getInt(1);
                 }
 
-                // ✅ Store session attributes
                 HttpSession session = request.getSession();
                 session.setAttribute("user_id", userId);
-                session.setAttribute("email", email); // Optional, useful for other forms
+                session.setAttribute("email", email);
 
-                // Redirect to respective form
                 if (role.equals("student")) {
                     response.sendRedirect("studentForm.jsp");
                 } else if (role.equals("master")) {

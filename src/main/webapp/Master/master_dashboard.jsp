@@ -11,7 +11,7 @@
 
 <%@ include file="masterSidebar.jsp" %>
 
-<div class="main-content">
+<div class="main-content p-4">
   <div class="top-bar d-flex justify-content-between align-items-center mb-4">
     <h1>Master Dashboard</h1>
     <div class="greeting text-muted">
@@ -19,13 +19,13 @@
     </div>
   </div>
 
-  <div class="card">
-    <h5>Your Tools</h5>
+  <div class="card p-4 shadow-sm">
+    <h5 class="mb-3">Your Tools</h5>
     <ul>
-      <li>Upload notes and resources for students</li>
-      <li>Create and manage tests</li>
-      <li>View performance reports</li>
-      <li>Respond to student queries</li>
+      <li>📤 Upload notes and study material</li>
+      <li>📝 Create and manage tests</li>
+      <li>📈 View student performance reports</li>
+      <li>💬 Respond to student queries (Coming Soon)</li>
     </ul>
   </div>
 </div>

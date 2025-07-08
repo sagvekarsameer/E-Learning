@@ -1,8 +1,8 @@
 package admin;
 
 import jakarta.servlet.*;
+import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.*;
-import jakarta.servlet.annotation.*;
 import java.io.IOException;
 import java.sql.*;
 
@@ -20,9 +20,8 @@ public class AdminDetailsServlet extends HttpServlet {
             return;
         }
 
-        try {
+        try (Connection conn = DriverManager.getConnection("jdbc:mysql://localhost:3306/e-learning", "root", "")) {
             Class.forName("com.mysql.cj.jdbc.Driver");
-            Connection conn = DriverManager.getConnection("jdbc:mysql://localhost:3306/e-learning", "root", "");
 
             PreparedStatement ps = conn.prepareStatement(
                     "INSERT INTO admins (user_id, institute_name, access_level) VALUES (?, ?, ?)"
@@ -39,8 +38,6 @@ public class AdminDetailsServlet extends HttpServlet {
                 response.sendRedirect("adminForm.jsp?error=Failed+to+save+details");
             }
 
-            ps.close();
-            conn.close();
         } catch (Exception e) {
             e.printStackTrace();
             response.sendRedirect("adminForm.jsp?error=Server+Error");

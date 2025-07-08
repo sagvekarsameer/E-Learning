@@ -13,7 +13,7 @@ import java.util.*;
 
 @WebServlet("/student/notes")
 public class StudentNotesServlet extends HttpServlet {
-
+    @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
 
@@ -23,60 +23,87 @@ public class StudentNotesServlet extends HttpServlet {
             return;
         }
 
-        // DEBUG: Print session data
-        String std = (String) session.getAttribute("std");
-        String stream = (String) session.getAttribute("stream");
-        String exam = (String) session.getAttribute("exam_preparing");
+        int userId = (int) session.getAttribute("user_id");
 
-        System.out.println("Student Session - STD: " + std + ", Stream: " + stream + ", Exam: " + exam);
+        String studentStd = (String) session.getAttribute("standard");
+        String studentStream = (String) session.getAttribute("stream");
+        String studentExam = (String) session.getAttribute("exam_preparing");
 
-        String studentStd = std != null ? std.trim().toLowerCase() : "";
-        String studentStream = stream != null ? stream.trim().toLowerCase() : "";
-        String studentExam = exam != null ? exam.trim().toLowerCase() : "";
+        // If any session value missing, try fetching from DB
+        if (studentStd == null || studentStream == null || studentExam == null) {
+            try (Connection conn = DBUtil.getConnection()) {
+                PreparedStatement ps = conn.prepareStatement("SELECT * FROM student_profiles WHERE user_id = ?");
+                ps.setInt(1, userId);
+                ResultSet rs = ps.executeQuery();
+
+                if (rs.next()) {
+                    studentStd = rs.getString("standard");
+                    studentStream = rs.getString("stream");
+                    studentExam = rs.getString("exam_preparing");
+
+                    // Refresh session attributes
+                    session.setAttribute("standard", studentStd);
+                    session.setAttribute("stream", studentStream);
+                    session.setAttribute("exam_preparing", studentExam);
+                }
+
+                rs.close();
+                ps.close();
+            } catch (Exception e) {
+                e.printStackTrace();
+                request.setAttribute("errorMessage", "Unable to load student profile.");
+                request.getRequestDispatcher("/Student/studentNotes.jsp").forward(request, response);
+                return;
+            }
+        }
 
         List<Map<String, String>> standardNotes = new ArrayList<>();
         List<Map<String, String>> examNotes = new ArrayList<>();
 
         try (Connection conn = DBUtil.getConnection()) {
-            String sql = "SELECT * FROM notes";
-            PreparedStatement stmt = conn.prepareStatement(sql);
+            PreparedStatement stmt = conn.prepareStatement("SELECT * FROM notes ORDER BY id DESC");
             ResultSet rs = stmt.executeQuery();
 
             while (rs.next()) {
+                String title = rs.getString("title");
+                String subject = rs.getString("subject");
+                String desc = rs.getString("description");
+                String filePath = rs.getString("file_path");
                 String assignedTo = rs.getString("assigned_to");
-                if (assignedTo == null || assignedTo.isEmpty()) continue;
 
-                // DEBUG
-                System.out.println("Checking note: " + rs.getString("title") + " | assigned_to: " + assignedTo);
+                if (filePath == null || !filePath.startsWith("http")) continue;
+                if (assignedTo == null) assignedTo = "";
 
-                String[] parts = assignedTo.toLowerCase().split("[,\\-]");
-                Set<String> assignedSet = new HashSet<>();
-                for (String p : parts) assignedSet.add(p.trim());
+                Set<String> assignedSet = new HashSet<>(Arrays.asList(assignedTo.split(",")));
 
-                boolean isStandardMatch = assignedSet.contains(studentStd) && assignedSet.contains(studentStream);
-                boolean isExamMatch = !studentExam.isEmpty() && assignedSet.contains(studentExam);
+                boolean matchedStandard = (studentStd != null && assignedSet.contains(studentStd)) ||
+                        (studentStream != null && assignedSet.contains(studentStream));
+                boolean matchedExam = (studentExam != null && assignedSet.contains(studentExam));
 
-                if (isStandardMatch) {
-                    Map<String, String> note = new HashMap<>();
-                    note.put("title", rs.getString("title"));
-                    note.put("subject", rs.getString("subject"));
-                    note.put("description", rs.getString("description"));
-                    note.put("filePath", rs.getString("file_path"));
+                Map<String, String> note = new HashMap<>();
+                note.put("title", title);
+                note.put("subject", subject);
+                note.put("description", desc);
+                note.put("filePath", filePath);
+                note.put("assigned", assignedTo);
+
+                if (matchedStandard) {
                     standardNotes.add(note);
-                    System.out.println("✅ Added to Standard Notes: " + rs.getString("title"));
-                } else if (isExamMatch) {
-                    Map<String, String> note = new HashMap<>();
-                    note.put("title", rs.getString("title"));
-                    note.put("subject", rs.getString("subject"));
-                    note.put("description", rs.getString("description"));
-                    note.put("filePath", rs.getString("file_path"));
+                } else if (matchedExam) {
                     examNotes.add(note);
-                    System.out.println("✅ Added to Exam Notes: " + rs.getString("title"));
                 }
             }
 
+            rs.close();
+            stmt.close();
+
         } catch (Exception e) {
             e.printStackTrace();
+            request.setAttribute("errorMessage", "Error loading notes: " + e.getMessage());
+        }
+
+        if (standardNotes.isEmpty() && examNotes.isEmpty()) {
+            request.setAttribute("errorMessage", "No relevant notes found for your profile.");
         }
 
         request.setAttribute("standardNotes", standardNotes);
