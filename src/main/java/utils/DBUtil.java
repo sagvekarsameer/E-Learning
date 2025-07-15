@@ -10,6 +10,14 @@ public class DBUtil {
     private static final String PASSWORD = "";
 
     public static Connection getConnection() throws SQLException {
+        try {
+            Class.forName("com.mysql.cj.jdbc.Driver");
+        } catch (ClassNotFoundException e) {
+            System.err.println(
+                    "MySQL JDBC Driver not found. Make sure mysql-connector-java.jar is in your classpath."
+            );
+            throw new SQLException("MySQL JDBC Driver not found.", e);
+        }
         return DriverManager.getConnection(URL, USER, PASSWORD);
     }
 }

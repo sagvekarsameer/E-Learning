@@ -6,53 +6,65 @@ import jakarta.servlet.http.*;
 import utils.DBUtil;
 
 import java.io.IOException;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
+import java.sql.*;
 import java.util.*;
 
 @WebServlet("/student/notes")
 public class StudentNotesServlet extends HttpServlet {
+
+    private static final String USER_ID_SESSION_ATTR = "user_id";
+    private static final String STANDARD_SESSION_ATTR = "standard";
+    private static final String STREAM_SESSION_ATTR = "stream";
+    private static final String EXAM_SESSION_ATTR = "exam_preparing";
+    private static final String BOARD_SESSION_ATTR = "board";
+    private static final String ERROR_MESSAGE_ATTR = "errorMessage";
+    private static final String STANDARD_NOTES_REQ_ATTR = "standardNotes";
+    private static final String EXAM_NOTES_REQ_ATTR = "examNotes";
+    private static final String LOGIN_PAGE_PATH = "/login.jsp";
+    private static final String STUDENT_NOTES_JSP_PATH = "/Student/student_notes.jsp";
+
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
 
         HttpSession session = request.getSession(false);
-        if (session == null || session.getAttribute("user_id") == null) {
-            response.sendRedirect("../login.jsp");
+        if (session == null || session.getAttribute(USER_ID_SESSION_ATTR) == null) {
+            response.sendRedirect(request.getContextPath() + LOGIN_PAGE_PATH);
             return;
         }
 
-        int userId = (int) session.getAttribute("user_id");
+        int userId = (int) session.getAttribute(USER_ID_SESSION_ATTR);
+        String studentStd = (String) session.getAttribute(STANDARD_SESSION_ATTR);
+        String studentStream = (String) session.getAttribute(STREAM_SESSION_ATTR);
+        String studentExam = (String) session.getAttribute(EXAM_SESSION_ATTR);
+        String studentBoard = (String) session.getAttribute(BOARD_SESSION_ATTR);
 
-        String studentStd = (String) session.getAttribute("standard");
-        String studentStream = (String) session.getAttribute("stream");
-        String studentExam = (String) session.getAttribute("exam_preparing");
+        if (studentStd == null || studentStream == null || studentExam == null || studentBoard == null) {
+            try (Connection conn = DBUtil.getConnection();
+                 PreparedStatement ps = conn.prepareStatement(
+                         "SELECT standard, stream, exam_preparing, board FROM student_profiles WHERE user_id = ?")) {
 
-        // If any session value missing, try fetching from DB
-        if (studentStd == null || studentStream == null || studentExam == null) {
-            try (Connection conn = DBUtil.getConnection()) {
-                PreparedStatement ps = conn.prepareStatement("SELECT * FROM student_profiles WHERE user_id = ?");
                 ps.setInt(1, userId);
-                ResultSet rs = ps.executeQuery();
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (rs.next()) {
+                        studentStd = rs.getString("standard");
+                        studentStream = rs.getString("stream");
+                        studentExam = rs.getString("exam_preparing");
+                        studentBoard = rs.getString("board");
 
-                if (rs.next()) {
-                    studentStd = rs.getString("standard");
-                    studentStream = rs.getString("stream");
-                    studentExam = rs.getString("exam_preparing");
-
-                    // Refresh session attributes
-                    session.setAttribute("standard", studentStd);
-                    session.setAttribute("stream", studentStream);
-                    session.setAttribute("exam_preparing", studentExam);
+                        session.setAttribute(STANDARD_SESSION_ATTR, studentStd);
+                        session.setAttribute(STREAM_SESSION_ATTR, studentStream);
+                        session.setAttribute(EXAM_SESSION_ATTR, studentExam);
+                        session.setAttribute(BOARD_SESSION_ATTR, studentBoard);
+                    } else {
+                        request.setAttribute(ERROR_MESSAGE_ATTR, "Student profile not found for the logged-in user.");
+                        request.getRequestDispatcher(STUDENT_NOTES_JSP_PATH).forward(request, response);
+                        return;
+                    }
                 }
-
-                rs.close();
-                ps.close();
-            } catch (Exception e) {
-                e.printStackTrace();
-                request.setAttribute("errorMessage", "Unable to load student profile.");
-                request.getRequestDispatcher("/Student/studentNotes.jsp").forward(request, response);
+            } catch (SQLException e) {
+                request.setAttribute(ERROR_MESSAGE_ATTR, "Database error loading student profile.");
+                request.getRequestDispatcher(STUDENT_NOTES_JSP_PATH).forward(request, response);
                 return;
             }
         }
@@ -61,53 +73,70 @@ public class StudentNotesServlet extends HttpServlet {
         List<Map<String, String>> examNotes = new ArrayList<>();
 
         try (Connection conn = DBUtil.getConnection()) {
-            PreparedStatement stmt = conn.prepareStatement("SELECT * FROM notes ORDER BY id DESC");
-            ResultSet rs = stmt.executeQuery();
 
-            while (rs.next()) {
-                String title = rs.getString("title");
-                String subject = rs.getString("subject");
-                String desc = rs.getString("description");
-                String filePath = rs.getString("file_path");
-                String assignedTo = rs.getString("assigned_to");
+            // Fetch standard notes via JOIN
+            try (PreparedStatement stdStmt = conn.prepareStatement(
+                    "SELECT n.title, n.subject, n.description, n.file_path, s.assigned_standard, s.assigned_stream, s.assigned_board " +
+                            "FROM notes n JOIN standard_notes s ON n.id = s.note_id " +
+                            "WHERE s.assigned_standard = ? AND s.assigned_stream = ? AND s.assigned_board = ? " +
+                            "ORDER BY n.id DESC")) {
 
-                if (filePath == null || !filePath.startsWith("http")) continue;
-                if (assignedTo == null) assignedTo = "";
+                stdStmt.setString(1, studentStd);
+                stdStmt.setString(2, studentStream);
+                stdStmt.setString(3, studentBoard);
 
-                Set<String> assignedSet = new HashSet<>(Arrays.asList(assignedTo.split(",")));
-
-                boolean matchedStandard = (studentStd != null && assignedSet.contains(studentStd)) ||
-                        (studentStream != null && assignedSet.contains(studentStream));
-                boolean matchedExam = (studentExam != null && assignedSet.contains(studentExam));
-
-                Map<String, String> note = new HashMap<>();
-                note.put("title", title);
-                note.put("subject", subject);
-                note.put("description", desc);
-                note.put("filePath", filePath);
-                note.put("assigned", assignedTo);
-
-                if (matchedStandard) {
-                    standardNotes.add(note);
-                } else if (matchedExam) {
-                    examNotes.add(note);
+                try (ResultSet rs = stdStmt.executeQuery()) {
+                    while (rs.next()) {
+                        String filePath = rs.getString("file_path");
+                        if (filePath != null && filePath.startsWith("http")) {
+                            Map<String, String> note = new HashMap<>();
+                            note.put("title", rs.getString("title"));
+                            note.put("subject", rs.getString("subject"));
+                            note.put("description", rs.getString("description"));
+                            note.put("filePath", filePath);
+                            note.put("assigned", "Board: " + rs.getString("assigned_board")
+                                    + ", Std: " + rs.getString("assigned_standard")
+                                    + ", Stream: " + rs.getString("assigned_stream"));
+                            standardNotes.add(note);
+                        }
+                    }
                 }
             }
 
-            rs.close();
-            stmt.close();
+            // Fetch exam notes via JOIN
+            try (PreparedStatement examStmt = conn.prepareStatement(
+                    "SELECT n.title, n.subject, n.description, n.file_path, e.assigned_exam " +
+                            "FROM notes n JOIN exam_notes e ON n.id = e.note_id " +
+                            "WHERE e.assigned_exam = ? ORDER BY n.id DESC")) {
 
+                examStmt.setString(1, studentExam);
+
+                try (ResultSet rs = examStmt.executeQuery()) {
+                    while (rs.next()) {
+                        String filePath = rs.getString("file_path");
+                        if (filePath != null && filePath.startsWith("http")) {
+                            Map<String, String> note = new HashMap<>();
+                            note.put("title", rs.getString("title"));
+                            note.put("subject", rs.getString("subject"));
+                            note.put("description", rs.getString("description"));
+                            note.put("filePath", filePath);
+                            note.put("assigned", "Exam: " + rs.getString("assigned_exam"));
+                            examNotes.add(note);
+                        }
+                    }
+                }
+            }
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+            request.setAttribute(ERROR_MESSAGE_ATTR, "Database error while loading notes.");
         } catch (Exception e) {
             e.printStackTrace();
-            request.setAttribute("errorMessage", "Error loading notes: " + e.getMessage());
+            request.setAttribute(ERROR_MESSAGE_ATTR, "Unexpected error while loading notes.");
         }
 
-        if (standardNotes.isEmpty() && examNotes.isEmpty()) {
-            request.setAttribute("errorMessage", "No relevant notes found for your profile.");
-        }
-
-        request.setAttribute("standardNotes", standardNotes);
-        request.setAttribute("examNotes", examNotes);
-        request.getRequestDispatcher("/Student/studentNotes.jsp").forward(request, response);
+        request.setAttribute(STANDARD_NOTES_REQ_ATTR, standardNotes);
+        request.setAttribute(EXAM_NOTES_REQ_ATTR, examNotes);
+        request.getRequestDispatcher(STUDENT_NOTES_JSP_PATH).forward(request, response);
     }
 }

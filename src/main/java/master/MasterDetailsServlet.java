@@ -1,16 +1,24 @@
 package master;
 
-import jakarta.servlet.*;
+import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.*;
+import utils.DBUtil;
 
 import java.io.IOException;
-import java.sql.*;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 
 @WebServlet("/masterDetails")
 public class MasterDetailsServlet extends HttpServlet {
+    private static final long serialVersionUID = 1L;
+
     @Override
-    protected void doPost(HttpServletRequest request, HttpServletResponse response) throws IOException {
+    protected void doPost(HttpServletRequest request, HttpServletResponse response)
+            throws IOException, ServletException {
+
         String specialization = request.getParameter("subject_specialization");
         String assigned = request.getParameter("assigned");
 
@@ -18,47 +26,45 @@ public class MasterDetailsServlet extends HttpServlet {
         Integer userId = (session != null) ? (Integer) session.getAttribute("user_id") : null;
 
         if (userId == null) {
-            response.sendRedirect("login.jsp?error=Session+expired,+please+login+again");
+            response.sendRedirect(request.getContextPath() + "/login.jsp?error=Session+expired,+please+login+again");
             return;
         }
 
-        try {
-            // Load JDBC driver
-            Class.forName("com.mysql.cj.jdbc.Driver");
+        try (Connection conn = DBUtil.getConnection()) {
 
-            // Connect to DB
-            try (Connection conn = DriverManager.getConnection("jdbc:mysql://localhost:3306/e-learning", "root", "")) {
-                // Check if master already exists (optional, prevents duplicate insert)
-                PreparedStatement check = conn.prepareStatement("SELECT * FROM masters WHERE user_id = ?");
-                check.setInt(1, userId);
-                ResultSet rs = check.executeQuery();
-                if (rs.next()) {
-                    response.sendRedirect("login.jsp?success=Master+profile+already+exists");
-                    return;
-                }
-
-                // Insert new master details
-                PreparedStatement ps = conn.prepareStatement(
-                        "INSERT INTO masters (user_id, subject_specialization, assigned) VALUES (?, ?, ?)"
-                );
-                ps.setInt(1, userId);
-                ps.setString(2, specialization);
-                ps.setString(3, assigned);
-
-                int rows = ps.executeUpdate();
-                ps.close();
-
-                if (rows > 0) {
-                    session.invalidate(); // force re-login
-                    response.sendRedirect("login.jsp?success=Master+profile+completed,+please+login");
-                } else {
-                    response.sendRedirect("masterForm.jsp?error=Failed+to+save+details");
+            try (PreparedStatement checkPs = conn.prepareStatement(
+                    "SELECT id FROM masters WHERE user_id = ?")) {
+                checkPs.setInt(1, userId);
+                try (ResultSet rs = checkPs.executeQuery()) {
+                    if (rs.next()) {
+                        response.sendRedirect(request.getContextPath() + "/login.jsp?success=Master+profile+already+exists");
+                        return;
+                    }
                 }
             }
 
+            try (PreparedStatement insertPs = conn.prepareStatement(
+                    "INSERT INTO masters (user_id, subject_specialization, assigned) VALUES (?, ?, ?)")) {
+                insertPs.setInt(1, userId);
+                insertPs.setString(2, specialization);
+                insertPs.setString(3, assigned);
+
+                int rows = insertPs.executeUpdate();
+
+                if (rows > 0) {
+                    session.invalidate();
+                    response.sendRedirect(request.getContextPath() + "/login.jsp?success=Master+profile+completed,+please+login");
+                } else {
+                    response.sendRedirect(request.getContextPath() + "/masterForm.jsp?error=Failed+to+save+details");
+                }
+            }
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+            response.sendRedirect(request.getContextPath() + "/masterForm.jsp?error=Database+Error");
         } catch (Exception e) {
             e.printStackTrace();
-            response.sendRedirect("masterForm.jsp?error=Server+Error");
+            response.sendRedirect(request.getContextPath() + "/masterForm.jsp?error=Server+Error");
         }
     }
 }
